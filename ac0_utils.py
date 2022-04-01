@@ -8,6 +8,9 @@ from keras import layers
 from typing import Any, List, Sequence, Tuple
 from IPython import display as ipythondisplay
 from PIL import Image
+import imageio
+
+from dqn0_utils import embed_mp4
 
 def render_episode(env: gym.Env, model: tf.keras.Model, max_steps: int):
   screen = env.render(mode='rgb_array')
@@ -34,6 +37,20 @@ def render_episode(env: gym.Env, model: tf.keras.Model, max_steps: int):
 
   return images
 
+def create_policy_eval_video(env,model, filename, num_episodes=5, fps=30):
+  filename = filename + ".mp4"
+  with imageio.get_writer(filename, fps=fps) as video:
+    for _ in range(num_episodes):
+        state = tf.constant(env.reset(), dtype=tf.float32)
+        video.append_data(env.render(mode='rgb_array'))
+        done = False
+        while not done:
+            state = tf.expand_dims(state, 0)
+            action_probs, _ = model(state)
+            action = np.argmax(np.squeeze(action_probs))
+            state, _, done, _ = env.step(action)
+            video.append_data(env.render(mode='rgb_array'))
+  return embed_mp4(filename)
 
 class ActorCritic(tf.keras.Model):
   """Combined actor-critic network."""
@@ -189,4 +206,4 @@ def train_step(
 
   episode_reward = tf.math.reduce_sum(rewards)
 
-  return episode_reward
+  return int(episode_reward)

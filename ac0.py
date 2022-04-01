@@ -9,7 +9,6 @@ from typing import Any, List, Sequence, Tuple
 import tqdm
 
 from ac0_utils import *
-
 if __name__ == '__main__':
     env = gym.make("CartPole-v0")
     num_actions = env.action_space.n  # 2
@@ -39,8 +38,8 @@ if __name__ == '__main__':
     with tqdm.trange(max_episodes) as t:
         for i in t:
             initial_state = tf.constant(env.reset(), dtype=tf.float32)
-            episode_reward = int(train_step(
-                env,eps,huber_loss,initial_state, model, optimizer, gamma, max_steps_per_episode))
+            episode_reward = train_step(
+                env,eps,huber_loss,initial_state, model, optimizer, gamma, max_steps_per_episode)
 
             episodes_reward.append(episode_reward)
             running_reward = statistics.mean(episodes_reward)
@@ -58,20 +57,4 @@ if __name__ == '__main__':
 
     print(f'\nSolved at episode {i}: average reward: {running_reward:.2f}!')
 
-    from IPython import display as ipythondisplay
-    from PIL import Image
-    from pyvirtualdisplay import Display
-
-    display = Display(visible=0, size=(400, 300))
-    display.start()
-
-    # Save GIF image
-    images = render_episode(env, model, max_steps_per_episode)
-    image_file = 'cartpole-v0.gif'
-    # loop=0: loop forever, duration=1: play each frame for 1ms
-    images[0].save(
-        image_file, save_all=True, append_images=images[1:], loop=0, duration=1)
-
-    import tensorflow_docs.vis.embed as embed
-    embed.embed_file(image_file)
-
+    create_policy_eval_video(env,model,'ac0_test')
