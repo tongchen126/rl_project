@@ -173,14 +173,26 @@ def set_memory_growth():
 if __name__ == '__main__':
     from dqn0_custom_agent import CardGameEnv
     set_memory_growth()
-    eval_py_env = CardGameEnv()
+    use_custom_env = False
+    if use_custom_env:
+        eval_py_env = CardGameEnv()
+    else:
+        env_name = 'CartPole-v0'
+        #env_name = 'MountainCar-v0'
+        eval_py_env = suite_gym.load(env_name)
+
     eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
     random_policy = random_tf_policy.RandomTFPolicy(eval_env.time_step_spec(),
                                                     eval_env.action_spec())
     policy = tf.saved_model.load('dqn0_policy/')
-    actions,observations = create_policy_eval_actions(eval_env,policy)
-    print(actions)
-    print(observations)
-    actions,observations = create_policy_eval_actions(eval_env,random_policy)
-    print(actions)
-    print(observations)
+
+    if use_custom_env:
+        actions,observations = create_policy_eval_actions(eval_env,policy)
+        print(actions)
+        print(observations)
+        actions,observations = create_policy_eval_actions(eval_env,random_policy)
+        print(actions)
+        print(observations)
+    else:
+        create_policy_eval_video(eval_env,eval_py_env,policy, "trained-agent")
+        create_policy_eval_video(eval_env,eval_py_env,random_policy, "random-agent")
