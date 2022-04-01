@@ -157,8 +157,22 @@ def create_dqn_agent(action_spec,time_step_spec,lr):
 
   return agent
 
+def set_memory_growth():
+    gpus = tf.config.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+
 if __name__ == '__main__':
     from dqn0_custom_agent import CardGameEnv
+    set_memory_growth()
     eval_py_env = CardGameEnv()
     eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
     random_policy = random_tf_policy.RandomTFPolicy(eval_env.time_step_spec(),

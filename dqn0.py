@@ -33,6 +33,7 @@ from dqn0_utils import *
 from dqn0_custom_agent import CardGameEnv
 
 if __name__ == '__main__':
+    set_memory_growth()
     config = {
         'num_iterations' : 50000,
         'initial_collect_steps' : 100,
@@ -44,12 +45,18 @@ if __name__ == '__main__':
         'log_interval' : 200,
         'num_eval_episodes' : 10,
         'eval_interval' : 1000,
+        'save_path'     : 'dqn0_policy/',
     }
-    env_name = 'CartPole-v0'
-    #env_name = 'MountainCar-v0'
+    use_custom_env = False
+    if use_custom_env:
+        train_py_env = CardGameEnv()
+        eval_py_env = CardGameEnv()
+    else:
+        env_name = 'CartPole-v0'
+        #env_name = 'MountainCar-v0'
+        train_py_env = suite_gym.load(env_name)
+        eval_py_env = suite_gym.load(env_name)
 
-    train_py_env = CardGameEnv()
-    eval_py_env = CardGameEnv()
     train_env = tf_py_environment.TFPyEnvironment(train_py_env)
     eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
 
@@ -111,15 +118,15 @@ if __name__ == '__main__':
         returns.append(avg_return)
 
     save_avg_return(config['num_iterations'],config['eval_interval'],returns)
-    policy_saver.PolicySaver(agent.policy).save('dqn0_policy/')
+    policy_saver.PolicySaver(agent.policy).save(config['save_path'])
 
-    '''
-    actions,observations = create_policy_eval_actions(eval_env,agent.policy)
-    print(actions)
-    print(observations)
-    actions,observations = create_policy_eval_actions(eval_env,random_policy)
-    print(actions)
-    print(observations)
-    #create_policy_eval_video(eval_env,eval_py_env,agent.policy, "trained-agent")
-    #create_policy_eval_video(eval_env,eval_py_env,random_policy, "random-agent")
-    '''
+    if use_custom_env:
+        actions,observations = create_policy_eval_actions(eval_env,agent.policy)
+        print(actions)
+        print(observations)
+        actions,observations = create_policy_eval_actions(eval_env,random_policy)
+        print(actions)
+        print(observations)
+    else:
+        create_policy_eval_video(eval_env,eval_py_env,agent.policy, "trained-agent")
+        create_policy_eval_video(eval_env,eval_py_env,random_policy, "random-agent")
