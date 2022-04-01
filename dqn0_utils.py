@@ -84,10 +84,10 @@ def create_policy_eval_actions(env,policy, num_episodes=5):
         observation = []
         time_step = env.reset()
         while not time_step.is_last():
+            observation.extend(time_step.observation.numpy().flatten().tolist())
             action_step = policy.action(time_step)
+            action.extend(action_step.action.numpy().flatten().tolist())
             time_step = env.step(action_step.action)
-            observation.append(time_step.observation.numpy())
-            action.append(action_step.action.numpy())
         actions.append(action)
         observations.append(observation)
     return actions,observations
@@ -156,3 +156,17 @@ def create_dqn_agent(action_spec,time_step_spec,lr):
   agent.initialize()
 
   return agent
+
+if __name__ == '__main__':
+    from dqn0_custom_agent import CardGameEnv
+    eval_py_env = CardGameEnv()
+    eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
+    random_policy = random_tf_policy.RandomTFPolicy(eval_env.time_step_spec(),
+                                                    eval_env.action_spec())
+    policy = tf.saved_model.load('dqn0_policy/')
+    actions,observations = create_policy_eval_actions(eval_env,policy)
+    print(actions)
+    print(observations)
+    actions,observations = create_policy_eval_actions(eval_env,random_policy)
+    print(actions)
+    print(observations)
