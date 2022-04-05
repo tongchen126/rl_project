@@ -1,9 +1,14 @@
 # rl_project
-# Deep Q Network
-## dqn0.py: main file for training.
-## dqn0_custom_agent.py: custom the environment here.
-## dqn0_utils.py: agent and dataset creation, model evaluation, save video file..
+```
+tensorflow==2.8.0
+```
+# Deep Q Network / DDPG
+dqn0.py: main file for training. Change the gym environment here. And also speficy whether a discrete and continuous action space is used.  
+dqn0_utils.py: agent and dataset creation, model definition, evaluation, save video file..  
+dqn0_custom_agent.py: create your custom environment here.
 
-# Actor-Critic
-## ac0.py: main file for training.
-## ac0_utils.py: agent and dataset creation..
+
+# Actor-Critic (alternate)
+Only environment with discrete action space have been validated.  
+ac0.py: main file for training.  
+ac0_utils.py: agent and dataset creation..
