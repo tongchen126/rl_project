@@ -53,6 +53,7 @@ if __name__ == '__main__':
         eval_py_env = CardGameEnv()
     else:
         env_name = 'CartPole-v0'
+        env_name = 'HalfCheetah-v2'
         #env_name = 'MountainCar-v0'
         train_py_env = suite_gym.load(env_name)
         eval_py_env = suite_gym.load(env_name)
@@ -60,7 +61,8 @@ if __name__ == '__main__':
     train_env = tf_py_environment.TFPyEnvironment(train_py_env)
     eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
 
-    agent = create_dqn_agent(train_env.action_spec(),train_env.time_step_spec(),config['learning_rate'])
+    #agent = create_dqn_agent(train_env.action_spec(),train_env.time_step_spec(),config['learning_rate'])
+    agent = create_ddpg_network(train_env)
 
     random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(),
                                                     train_env.action_spec())

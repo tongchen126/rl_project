@@ -13,12 +13,13 @@ import reverb
 import tensorflow as tf
 
 from tf_agents.agents.dqn import dqn_agent
+from tf_agents.agents.ddpg.ddpg_agent import DdpgAgent
 from tf_agents.drivers import py_driver
 from tf_agents.environments import suite_gym
 from tf_agents.environments import tf_py_environment
 from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics
-from tf_agents.networks import sequential
+from tf_agents.networks import sequential,nest_map
 from tf_agents.policies import py_tf_eager_policy
 from tf_agents.policies import random_tf_policy
 from tf_agents.replay_buffers import reverb_replay_buffer
@@ -26,6 +27,7 @@ from tf_agents.replay_buffers import reverb_utils
 from tf_agents.trajectories import trajectory
 from tf_agents.specs import tensor_spec
 from tf_agents.utils import common
+from tf_agents.keras_layers import inner_reshape
 
 def compute_avg_return(environment, policy, num_episodes=10):
 
@@ -121,17 +123,16 @@ def create_rb_dataset(collect_data_spec,replay_buffer_max_length,batch_size,tabl
 
   return rb_observer,replay_buffer
 
+def dense_layer(num_units):
+    return tf.keras.layers.Dense(
+        num_units,
+        activation=tf.keras.activations.relu,
+        kernel_initializer=tf.keras.initializers.VarianceScaling(
+        scale=2.0, mode='fan_in', distribution='truncated_normal'))
+
 def create_dqn_agent(action_spec,time_step_spec,lr):
   fc_layer_params = (100, 50)
   num_actions = action_spec.maximum - action_spec.minimum + 1
-
-  def dense_layer(num_units):
-    return tf.keras.layers.Dense(
-      num_units,
-      activation=tf.keras.activations.relu,
-      kernel_initializer=tf.keras.initializers.VarianceScaling(
-        scale=2.0, mode='fan_in', distribution='truncated_normal'))
-
   dense_layers = [dense_layer(num_units) for num_units in fc_layer_params]
   q_values_layer = tf.keras.layers.Dense(
     num_actions,
@@ -156,6 +157,116 @@ def create_dqn_agent(action_spec,time_step_spec,lr):
   agent.initialize()
 
   return agent
+
+def create_actor_network(fc_layer_units, action_spec):
+  """Create an actor network for DDPG."""
+  flat_action_spec = tf.nest.flatten(action_spec)
+  if len(flat_action_spec) > 1:
+    raise ValueError('Only a single action tensor is supported by this network')
+  flat_action_spec = flat_action_spec[0]
+
+  fc_layers = [dense_layer(num_units) for num_units in fc_layer_units]
+
+  num_actions = flat_action_spec.shape.num_elements()
+  action_fc_layer = tf.keras.layers.Dense(
+      num_actions,
+      activation=tf.keras.activations.tanh,
+      kernel_initializer=tf.keras.initializers.RandomUniform(
+          minval=-0.003, maxval=0.003))
+
+  scaling_layer = tf.keras.layers.Lambda(
+      lambda x: common.scale_to_spec(x, flat_action_spec))
+  return sequential.Sequential(fc_layers + [action_fc_layer, scaling_layer])
+
+def create_identity_layer():
+  return tf.keras.layers.Lambda(lambda x: x)
+
+def create_fc_network(layer_units):
+  return sequential.Sequential([dense_layer(num_units) for num_units in layer_units])
+
+def create_critic_network(obs_fc_layer_units,
+                          action_fc_layer_units,
+                          joint_fc_layer_units):
+  """Create a critic network for DDPG."""
+
+  def split_inputs(inputs):
+    return {'observation': inputs[0], 'action': inputs[1]}
+
+  obs_network = create_fc_network(
+      obs_fc_layer_units) if obs_fc_layer_units else create_identity_layer()
+  action_network = create_fc_network(
+      action_fc_layer_units
+  ) if action_fc_layer_units else create_identity_layer()
+  joint_network = create_fc_network(
+      joint_fc_layer_units) if joint_fc_layer_units else create_identity_layer(
+      )
+  value_fc_layer = tf.keras.layers.Dense(
+      1,
+      activation=None,
+      kernel_initializer=tf.keras.initializers.RandomUniform(
+          minval=-0.003, maxval=0.003))
+
+  return sequential.Sequential([
+      tf.keras.layers.Lambda(split_inputs),
+      nest_map.NestMap({
+          'observation': obs_network,
+          'action': action_network
+      }),
+      nest_map.NestFlatten(),
+      tf.keras.layers.Concatenate(),
+      joint_network,
+      value_fc_layer,
+      inner_reshape.InnerReshape([1], [])
+  ])
+
+def create_ddpg_network(
+    tf_env,
+    actor_fc_layers=(400, 300),
+    critic_obs_fc_layers=(400,),
+    critic_action_fc_layers=None,
+    critic_joint_fc_layers=(300,),
+    ou_stddev=0.2,
+    ou_damping=0.15,
+    # Params for target update
+    target_update_tau=0.05,
+    target_update_period=5,
+    actor_learning_rate=1e-4,
+    critic_learning_rate=1e-3,
+    dqda_clipping=None,
+    td_errors_loss_fn=tf.compat.v1.losses.huber_loss,
+    gamma=0.995,
+    reward_scale_factor=1.0,
+    gradient_clipping=None,
+    debug_summaries=False,
+    summarize_grads_and_vars=False):
+    actor_net = create_actor_network(actor_fc_layers, tf_env.action_spec())
+    critic_net = create_critic_network(critic_obs_fc_layers,
+                                       critic_action_fc_layers,
+                                       critic_joint_fc_layers)
+    train_step_counter = tf.Variable(0)
+    tf_agent = DdpgAgent(
+        tf_env.time_step_spec(),
+        tf_env.action_spec(),
+        actor_network=actor_net,
+        critic_network=critic_net,
+        actor_optimizer=tf.compat.v1.train.AdamOptimizer(
+            learning_rate=actor_learning_rate),
+        critic_optimizer=tf.compat.v1.train.AdamOptimizer(
+            learning_rate=critic_learning_rate),
+        ou_stddev=ou_stddev,
+        ou_damping=ou_damping,
+        target_update_tau=target_update_tau,
+        target_update_period=target_update_period,
+        dqda_clipping=dqda_clipping,
+        td_errors_loss_fn=td_errors_loss_fn,
+        gamma=gamma,
+        reward_scale_factor=reward_scale_factor,
+        gradient_clipping=gradient_clipping,
+        debug_summaries=debug_summaries,
+        summarize_grads_and_vars=summarize_grads_and_vars,
+        train_step_counter=train_step_counter)
+    tf_agent.initialize()
+    return tf_agent
 
 def set_memory_growth():
     gpus = tf.config.list_physical_devices('GPU')
