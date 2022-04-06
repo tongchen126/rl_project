@@ -40,7 +40,7 @@ if __name__ == '__main__':
         'collect_steps_per_iteration' : 10,
         'collect_episodes_per_iteration': 1,
         'replay_buffer_max_length' : 10000,
-        'batch_size' : 128,
+        'batch_size' : 32,
         'learning_rate' : 1e-3,
         'log_interval' : 200,
         'num_eval_episodes' : 10,
@@ -48,21 +48,24 @@ if __name__ == '__main__':
         'save_path'     : 'dqn0_policy/',
     }
     use_custom_env = False
+    continus_action_space = False
     if use_custom_env:
         train_py_env = CardGameEnv()
         eval_py_env = CardGameEnv()
     else:
-        env_name = 'CartPole-v0'
-        env_name = 'HalfCheetah-v2'
-        #env_name = 'MountainCar-v0'
+        env_name = 'CartPole-v0' #continus_action_space = False
+        #env_name = 'HalfCheetah-v2' #continus_action_space = True
+        #env_name = 'MountainCar-v0' #continus_action_space = False
         train_py_env = suite_gym.load(env_name)
         eval_py_env = suite_gym.load(env_name)
 
     train_env = tf_py_environment.TFPyEnvironment(train_py_env)
     eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
 
-    #agent = create_dqn_agent(train_env.action_spec(),train_env.time_step_spec(),config['learning_rate'])
-    agent = create_ddpg_network(train_env)
+    if continus_action_space:
+        agent = create_ddpg_network(train_env)
+    else:
+        agent = create_dqn_agent(train_env.action_spec(),train_env.time_step_spec(),config['learning_rate'])
 
     random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(),
                                                     train_env.action_spec())
@@ -123,6 +126,7 @@ if __name__ == '__main__':
     policy_saver.PolicySaver(agent.policy).save(config['save_path'])
 
     if use_custom_env:
+        # Print Action/Observation
         actions,observations = create_policy_eval_actions(eval_env,agent.policy)
         print(actions)
         print(observations)
@@ -130,5 +134,6 @@ if __name__ == '__main__':
         print(actions)
         print(observations)
     else:
+        # Generate Video
         create_policy_eval_video(eval_env,eval_py_env,agent.policy, "trained-agent")
         create_policy_eval_video(eval_env,eval_py_env,random_policy, "random-agent")
