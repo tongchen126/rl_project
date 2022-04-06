@@ -9,6 +9,6 @@ dqn0_custom_agent.py: create your custom environment here.
 
 
 # Actor-Critic (alternative)
-Only environment with discrete action space have been validated.  
+Only environment with discrete action space has been validated.  
 ac0.py: main file for training.  
 ac0_utils.py: agent and dataset creation..
