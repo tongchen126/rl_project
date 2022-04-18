@@ -36,11 +36,11 @@ if __name__ == '__main__':
     set_memory_growth()
     config = {
         'num_iterations' : 50000,
-        'initial_collect_steps' : 100,
+        'initial_collect_steps' : 1000,
         'collect_steps_per_iteration' : 10,
         'collect_episodes_per_iteration': 1,
         'replay_buffer_max_length' : 10000,
-        'batch_size' : 32,
+        'batch_size' : 64,
         'learning_rate' : 1e-3,
         'log_interval' : 200,
         'num_eval_episodes' : 10,
@@ -48,13 +48,13 @@ if __name__ == '__main__':
         'save_path'     : 'dqn0_policy/',
     }
     use_custom_env = False
-    continus_action_space = False
+    continus_action_space = True
     if use_custom_env:
         train_py_env = CardGameEnv()
         eval_py_env = CardGameEnv()
     else:
-        env_name = 'CartPole-v0' #continus_action_space = False
-        #env_name = 'HalfCheetah-v2' #continus_action_space = True
+        #env_name = 'CartPole-v0' #continus_action_space = False
+        env_name = 'HalfCheetah-v2' #continus_action_space = True
         #env_name = 'MountainCar-v0' #continus_action_space = False
         train_py_env = suite_gym.load(env_name)
         eval_py_env = suite_gym.load(env_name)

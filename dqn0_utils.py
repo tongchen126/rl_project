@@ -58,13 +58,14 @@ def embed_mp4(filename):
 
   return IPython.display.HTML(tag)
 
-def save_avg_return(num_iterations,eval_interval,data,file='avg_return.png'):
+def save_avg_return(num_iterations,eval_interval,data,file='avg_return'):
     iterations = range(0, num_iterations + 1, eval_interval)
     plt.plot(iterations, data)
     plt.ylabel('Average Return')
     plt.xlabel('Iterations')
     plt.ylim(top=250)
-    plt.savefig(file)
+    plt.savefig(file+'.png')
+    np.save(file+'.npy',np.array(data))
 
 def create_policy_eval_video(env,py_env,policy, filename, num_episodes=5, fps=30):
   filename = filename + ".mp4"
